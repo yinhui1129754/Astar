@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>A-star</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=0">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="format-detection" content="email=no">
+    <style>
+        img{
+            width: 10px;
+            height: 10px;
+        }
+        #output{
+            font-size: 0px;
+        }
+    </style>
+</head>
+<body>
+<div id="output" style="width: 200px;height: 200px;"></div>
+<div >
+    开始点<input id="start" value="0|0"><span style="margin-left: 10px">x|y</span>
+    <br />
+    结束点<input id="end" value="19|19"><span style="margin-left: 10px">x|y</span>
+</div>
+<div style="padding: 15px 0">
+    地图坐标左上角0,0 <br />
+    地图坐标右下角19,19<br />
+    非最近寻路(就是普通的找路)
+</div>
+<button onclick="findPath()">点击寻路</button>
+<script type="text/javascript">
+    //地图信息
+    var mapArr = [
+        0,1,0,1,0,0,1,0,1,0,0,1,0,1,0,0,1,0,1,0,
+        0,1,0,1,0,0,1,0,1,0,0,0,0,1,0,0,0,0,1,0,
+        0,1,0,0,0,0,1,0,0,0,0,1,1,1,0,0,1,1,1,0,
+        0,1,0,1,0,0,1,0,1,0,0,1,0,1,0,0,1,0,1,0,
+        0,0,0,1,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0,
+        0,1,1,1,0,0,1,1,1,0,0,1,0,1,0,0,1,0,1,0,
+        0,0,0,1,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0,
+        0,1,1,1,0,0,1,1,1,0,0,1,0,1,0,0,1,0,1,0,
+        0,1,0,1,0,0,1,0,1,0,0,0,0,1,0,0,0,0,1,0,
+        0,1,0,0,0,0,1,0,0,0,0,1,1,1,0,0,1,1,1,0,
+        0,1,0,1,0,0,1,0,1,0,0,1,0,1,0,0,1,0,1,0,
+        0,1,0,1,0,0,1,0,1,0,0,0,0,1,0,0,0,0,1,0,
+        0,1,0,0,0,0,1,0,0,0,0,1,1,1,0,0,1,1,1,0,
+        0,1,0,1,0,0,1,0,1,0,0,1,0,1,0,0,1,0,1,0,
+        0,0,0,1,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0,
+        0,1,1,1,0,0,1,1,1,0,0,1,0,1,0,0,1,0,1,0,
+        0,0,0,1,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0,
+        0,1,1,1,0,0,1,1,1,0,0,1,0,1,0,0,1,0,1,0,
+        0,1,0,1,0,0,1,0,1,0,0,0,0,1,0,0,0,0,1,0,
+        0,1,0,0,0,0,1,0,0,0,0,1,1,1,0,0,1,1,1,0
+    ];
+    //创建的节点数组
+    var eleArr= [];
+    //初始化地图
+    var initMap = function(arr,ele2,num){
+        var ele = null;
+        for(var i=0;i<arr.length;i++){
+            ele = document.createElement("div");
+            ele.style.width = "10px";
+            ele.style.height = "10px";
+            ele.style.display = "inline-block";
+            ele.style.verticalAlign = "middle";
+            ele.style.position = "absolute";
+            ele.style.left = i%num*10+"px";
+            ele.style.top = parseInt(i/num)*10+"px";
+            if(arr[i]==1){
+                ele.style.backgroundColor= "#333333";
+            }else{
+                ele.style.backgroundColor= "#cccccc";
+            }
+            ele2.append(ele);
+            eleArr.push(ele);
+        }
+    };
+    //地图的大小20x20
+    var xNum = 20;
+    var yNum = 20;
+    //初始化地图
+    initMap(mapArr,document.getElementById("output"),xNum);
+    //定义寻路的开始点和结束点 左上角为0,0 右下角为19，19
+    var startPoint = {x:0,y:0,val:"0|0"};
+    var endPoint = {x:19,y:19,val:"19|19"};
+
+    //核心函数
+    function searchArr(){
+        var path = [];
+        var openArr = [];
+        var closeArr = [];
+        //点转化为数组的下标
+        function pointToNum(point){
+            return xNum*point.y+point.x;
+        }
+        //获取当前寻路点的上面的点
+        function getTop(point){
+            if(point.y <= 0){
+                return -1;
+            }
+            return {x:point.x,y:point.y-1,val:point.x+"|"+(point.y-1),parent:point};
+        }
+        //获取当前寻路点的下面的点
+        function getBottom(point){
+            if(point.y >=yNum-1){
+                return -1;
+            }
+            return {x:point.x,y:point.y+1,val:point.x+"|"+(point.y+1),parent:point};
+        }
+        //获取当前寻路点的左面的点
+        function getLeft(point){
+            if(point.x <= 0){
+                return -1;
+            }
+            return {x:point.x-1,y:point.y,val:(point.x-1)+"|"+(point.y),parent:point};
+        }
+        //获取当前寻路点的右面的点
+        function getRight(point){
+            if(point.x >=xNum-1){
+                return -1;
+            }
+            return {x:point.x+1,y:point.y,val:(point.x+1)+"|"+(point.y),parent:point};
+        }
+        //获取周围的点并将点分配到相应的数组里面 一个是open 一个是已经关闭的数组 close
+        function getPointRound(point,obj){
+            var arr = [];
+            var o = {};
+            var p2 = getTop(point);
+            if(p2!=-1){
+                arr.push(p2);
+            }
+
+            p2 = getBottom(point);
+            if(p2!=-1){
+                arr.push(p2);
+            }
+            p2 = getLeft(point);
+            if(p2!=-1){
+                arr.push(p2);
+            }
+            p2 = getRight(point);
+            if(p2!=-1){
+                arr.push(p2);
+            }
+            fpArr(arr);
+            o.parent=obj;
+            return o;
+        }
+        //分配点 先判断点是不是在close里面没有在且我们点的值为0表示可以通行的那么就将点放入open数组里面
+        function fpArr(arr){
+            function arrIndex(val){
+                for(var i = 0;i<closeArr.length;i++){
+                    if(closeArr[i].val == val.val){return false}
+                }
+                return true;
+            }
+            for(var i=0;i<arr.length;i++){
+                if(arrIndex(arr[i])&&mapArr[pointToNum(arr[i])]==0){
+                    openArr.push(arr[i]);
+                }else{
+                    closeArr.push(arr[i]);
+                }
+            }
+        }
+        //递归查询点 最终查询到终点 到达终点后我们通过我们的递归对象获取路径
+        function gteDis(p1,p2){
+            return Math.sqrt(Math.abs(p1.x-p2.x)*Math.abs(p2.y-p1.y));
+        }
+        function getMinVal(arr){
+            var min = 0;
+            var int = 0;
+
+            for(var i = 0;i<arr.length;i++){
+                var val = gteDis(endPoint,arr[i]);
+                if(i==0){
+                    min = val;
+                    int = i;
+                }
+                if(val<min){
+                    min = val;
+                    int =i;
+                }
+            }
+            return int;
+        }
+        function open(){
+
+            var val = openArr.splice(getMinVal(openArr),1)[0];
+            getPointRound(val);
+            closeArr.push(val);
+            if(val.val==endPoint.val){
+                getPath(val);
+                return;
+            }
+            if(openArr.length){
+                open();
+            }
+        }
+        openArr.push(startPoint);
+        open();
+        //将获取到的路径信息转化为一个数组
+        function getPath(val){
+            path.unshift(pointToNum(val));
+            if(val.parent){
+                getPath(val.parent);
+            }
+        }
+        return path;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    var int =0;
+    function findPath(){
+        if(int!=0){
+            return;
+        }
+        //初始化点地图
+        eleArr.length = 0;
+        document.getElementById("output").innerHTML = "";
+        initMap(mapArr,document.getElementById("output"),xNum);
+        //获取要寻路的点的位置信息
+        var startEle = document.getElementById("start");
+        startPoint = {
+            val:startEle.value,
+            x:parseInt(startEle.value.split("|")[0]),
+            y:parseInt(startEle.value.split("|")[1])
+        };
+        var endEle = document.getElementById("end");
+        endPoint = {
+            val:endEle.value,
+            x:parseInt(endEle.value.split("|")[0]),
+            y:parseInt(endEle.value.split("|")[1])
+        };
+
+        clearInterval(int);
+        //开始寻路
+        var searArrEnd = searchArr();
+        console.log(searArrEnd);
+        if(!searArrEnd.length){
+            alert("没有找到点")
+        }
+        int =setInterval(function(){
+            var i = searArrEnd.shift();
+            if(eleArr[i]){
+                eleArr[i].style.backgroundColor="rgba(228,181,18,1)"
+            }else{
+                clearInterval(int);
+                int = 0;
+            }
+        },500);
+    }
+</script>
+</body>
+</html>
